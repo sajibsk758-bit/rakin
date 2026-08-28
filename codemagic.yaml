@@ -1,0 +1,45 @@
+workflows:
+  ios-smi-app:
+    name: SMI APP iOS
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      xcode: latest
+
+    scripts:
+      - name: Find Xcode project
+        script: |
+          set -e
+          echo "Repository root:"
+          pwd
+          echo "Repository contents:"
+          find "$CM_BUILD_DIR" -maxdepth 3 -type f -name "*.xcodeproj" -print
+
+          PROJECT_PATH="$(find "$CM_BUILD_DIR" -maxdepth 3 -type d -name "*.xcodeproj" -print -quit)"
+
+          if [ -z "$PROJECT_PATH" ]; then
+            echo "ERROR: No .xcodeproj was found."
+            exit 1
+          fi
+
+          echo "Using Xcode project: $PROJECT_PATH"
+          echo "$PROJECT_PATH" > /tmp/smi_xcode_project_path
+
+      - name: Show Xcode project information
+        script: |
+          set -e
+          PROJECT_PATH="$(cat /tmp/smi_xcode_project_path)"
+          echo "Project: $PROJECT_PATH"
+          xcodebuild -project "$PROJECT_PATH" -list
+
+      - name: Build IPA
+        script: |
+          set -e
+          PROJECT_PATH="$(cat /tmp/smi_xcode_project_path)"
+
+          xcode-project build-ipa             --project "$PROJECT_PATH"             --scheme "ThreeOneOSFive"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
